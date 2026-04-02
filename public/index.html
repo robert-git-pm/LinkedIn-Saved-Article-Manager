@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LAMP – LinkedIn Article Management & Productivity</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>LAMP</h1>
+      <p>LinkedIn Article Management & Productivity</p>
+
+      <div class="card">
+        <h3>Setup</h3>
+        <div class="row">
+          <input id="liAt" type="password" placeholder="LinkedIn li_at cookie" />
+        </div>
+        <small>How to find li_at: LinkedIn → DevTools → Application/Storage → Cookies → li_at.</small>
+        <div class="row" style="margin-top: 10px;">
+          <input id="apiKey" type="password" placeholder="Claude API key" />
+        </div>
+        <div class="row" style="margin-top: 10px;">
+          <input id="days" type="number" min="1" max="30" placeholder="How many recent days?" />
+          <button id="refresh" type="button">Fetch & Summarize</button>
+          <button id="clear" type="button" class="secondary">Clear local data</button>
+        </div>
+      </div>
+
+      <p id="status"></p>
+      <div id="articles"></div>
+
+      <div class="card">
+        <h3>Important note</h3>
+        <small>
+          LinkedIn does not provide an official endpoint for saved items. This app uses a best-effort unofficial request and may break when LinkedIn changes internals.
+        </small>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
