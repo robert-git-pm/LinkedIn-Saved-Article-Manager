@@ -19,6 +19,9 @@ node server.mjs
 
 Then open `http://localhost:3000`.
 
+> Do **not** open `public/index.html` directly with `file://...` in your browser.
+> The app needs the local server so `/api/...` routes work.
+
 ## Notes
 
 - LinkedIn has no official API endpoint for saved posts. This implementation uses a best-effort unofficial Voyager request through a local proxy.

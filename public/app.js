@@ -104,6 +104,10 @@ const render = () => {
 };
 
 const request = async (path, body) => {
+  if (window.location.protocol === 'file:') {
+    throw new Error('You opened index.html directly via file://. Please run "node server.mjs" and open http://localhost:3000.');
+  }
+
   const response = await fetch(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -180,7 +184,11 @@ const init = () => {
 
   load();
   render();
-  setStatus('Ready. Add your credentials and click "Fetch & Summarize".');
+  if (window.location.protocol === 'file:') {
+    setStatus('Detected file:// mode. Start the local server with "node server.mjs" and open http://localhost:3000.', true);
+  } else {
+    setStatus('Ready. Add your credentials and click "Fetch & Summarize".');
+  }
 };
 
 window.addEventListener('error', (event) => {
