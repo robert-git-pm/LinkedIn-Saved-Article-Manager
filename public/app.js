@@ -13,6 +13,21 @@ const state = {
   error: '',
 };
 
+const setStatus = (message, isError = false) => {
+  state.status = message;
+  state.error = isError ? message : '';
+  const statusElement = el('status');
+  if (statusElement) {
+    statusElement.textContent = message;
+    statusElement.className = isError ? 'error' : 'success';
+  }
+  if (isError) {
+    console.error('[LAMP]', message);
+  } else {
+    console.info('[LAMP]', message);
+  }
+};
+
 const load = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -36,11 +51,21 @@ const save = () => {
 const el = (id) => document.getElementById(id);
 
 const render = () => {
-  el('liAt').value = state.settings.liAt;
-  el('apiKey').value = state.settings.apiKey;
-  el('days').value = String(state.settings.days);
-  el('status').textContent = state.status;
-  el('status').className = state.error ? 'error' : 'success';
+  const liAtInput = el('liAt');
+  const apiKeyInput = el('apiKey');
+  const daysInput = el('days');
+  const statusElement = el('status');
+
+  if (!liAtInput || !apiKeyInput || !daysInput || !statusElement) {
+    console.error('[LAMP] Missing required DOM elements during render.');
+    return;
+  }
+
+  liAtInput.value = state.settings.liAt;
+  apiKeyInput.value = state.settings.apiKey;
+  daysInput.value = String(state.settings.days);
+  statusElement.textContent = state.status;
+  statusElement.className = state.error ? 'error' : 'success';
 
   const list = el('articles');
   list.innerHTML = '';
@@ -90,8 +115,7 @@ const request = async (path, body) => {
 };
 
 const refresh = async () => {
-  state.error = '';
-  state.status = 'Loading saved LinkedIn items...';
+  setStatus('Loading saved LinkedIn items...');
   render();
 
   try {
@@ -110,7 +134,7 @@ const refresh = async () => {
     });
 
     state.items = items;
-    state.status = `Loaded ${items.length} items. Summarizing...`;
+    setStatus(`Loaded ${items.length} items. Summarizing...`);
     render();
 
     const candidates = state.items.filter((item) => !state.done[item.id]).slice(0, 12);
@@ -130,21 +154,41 @@ const refresh = async () => {
       if (summary?.id) state.summaries[summary.id] = summary;
     });
 
-    state.status = 'Summaries updated.';
+    setStatus('Summaries updated.');
     save();
   } catch (error) {
-    state.error = error.message || 'Unexpected error';
-    state.status = state.error;
+    setStatus(error?.message || 'Unexpected error', true);
   }
 
   render();
 };
 
-el('refresh').addEventListener('click', refresh);
-el('clear').addEventListener('click', () => {
-  localStorage.removeItem(STORAGE_KEY);
-  location.reload();
+const init = () => {
+  const refreshButton = el('refresh');
+  const clearButton = el('clear');
+
+  if (!refreshButton || !clearButton) {
+    console.error('[LAMP] Initialization failed: button elements not found.');
+    return;
+  }
+
+  refreshButton.addEventListener('click', refresh);
+  clearButton.addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
+
+  load();
+  render();
+  setStatus('Ready. Add your credentials and click "Fetch & Summarize".');
+};
+
+window.addEventListener('error', (event) => {
+  setStatus(`Unexpected UI error: ${event.message}`, true);
 });
 
-load();
-render();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init, { once: true });
+} else {
+  init();
+}
