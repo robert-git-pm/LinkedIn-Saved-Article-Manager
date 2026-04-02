@@ -1,12 +1,8 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { extname, join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { extname, join } from 'node:path';
 
 const PORT = process.env.PORT || 3000;
-const CURRENT_FILE = fileURLToPath(import.meta.url);
-const BASE_DIR = dirname(CURRENT_FILE);
-const PUBLIC_DIR = join(BASE_DIR, 'public');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -126,7 +122,7 @@ const server = createServer(async (req, res) => {
     }
 
     const path = req.url === '/' ? '/index.html' : req.url;
-    const filePath = join(PUBLIC_DIR, path);
+    const filePath = join(process.cwd(), 'public', path);
     const file = await readFile(filePath);
     const ext = extname(filePath);
 

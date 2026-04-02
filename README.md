@@ -22,20 +22,6 @@ Then open `http://localhost:3000`.
 > Do **not** open `public/index.html` directly with `file://...` in your browser.
 > The app needs the local server so `/api/...` routes work.
 
-If you previously saw an error like `ENOENT ... /public/index.html`, this is usually caused by starting the server from a different folder.  
-Use either:
-
-```bash
-cd /path/to/LinkedIn-Saved-Article-Manager
-node server.mjs
-```
-
-or
-
-```bash
-node /path/to/LinkedIn-Saved-Article-Manager/server.mjs
-```
-
 ## Notes
 
 - LinkedIn has no official API endpoint for saved posts. This implementation uses a best-effort unofficial Voyager request through a local proxy.
