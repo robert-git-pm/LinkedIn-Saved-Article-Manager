@@ -20,8 +20,3 @@ export interface ArticleState {
   dismissedAt?: string;
 }
 
-export interface SavedArticlesResponse {
-  articles: LinkedInArticle[];
-  total: number;
-  hasMore: boolean;
-}

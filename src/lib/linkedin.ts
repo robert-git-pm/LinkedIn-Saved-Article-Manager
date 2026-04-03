@@ -57,12 +57,12 @@ export function parseSavedItems(data: unknown): LinkedInArticle[] {
     const actorName = update.actor?.name?.text ?? "Unknown";
 
     const title =
-      articleComponent?.title?.text ??
-      commentary.substring(0, 100) ??
+      articleComponent?.title?.text ||
+      commentary.substring(0, 100) ||
       "Untitled";
     const url = articleComponent?.navigationUrl ?? "";
     const previewText =
-      articleComponent?.description?.text ?? commentary ?? "";
+      articleComponent?.description?.text || commentary || "";
 
     const id =
       update.urn ?? item.entityUrn ?? `article-${articles.length}`;

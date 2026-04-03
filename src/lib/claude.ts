@@ -1,13 +1,7 @@
 import { LinkedInArticle, ArticleSummary } from "@/types/article";
 
-interface ClaudeMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
 interface ClaudeResponse {
   content: Array<{ type: "text"; text: string }>;
-  error?: { message: string };
 }
 
 export async function summarizeArticle(
@@ -32,7 +26,7 @@ Respond in this exact JSON format:
   "keyTakeaways": ["Takeaway 1", "Takeaway 2", "Takeaway 3"]
 }`;
 
-  const messages: ClaudeMessage[] = [{ role: "user", content: prompt }];
+  const messages = [{ role: "user" as const, content: prompt }];
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -86,24 +80,3 @@ Respond in this exact JSON format:
   }
 }
 
-export async function validateApiKey(apiKey: string): Promise<boolean> {
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6-20250514",
-        max_tokens: 10,
-        messages: [{ role: "user", content: "Hi" }],
-      }),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}

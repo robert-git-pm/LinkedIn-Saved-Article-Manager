@@ -250,11 +250,12 @@ export default function Home() {
       </main>
 
       {/* Settings Modal */}
-      <Settings
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        onSettingsChange={refreshState}
-      />
+      {showSettings && (
+        <Settings
+          onClose={() => setShowSettings(false)}
+          onSettingsChange={refreshState}
+        />
+      )}
     </div>
   );
 }

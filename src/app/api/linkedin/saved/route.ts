@@ -14,6 +14,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const csrfToken = Math.random().toString(36).substring(2);
+
     const response = await fetch(LINKEDIN_SAVED_POSTS_URL, {
       method: "GET",
       headers: {
@@ -27,10 +29,10 @@ export async function POST(request: NextRequest) {
           timezoneOffset: 0,
           deviceFormFactor: "DESKTOP",
         }),
-        Cookie: `li_at=${cookie}`,
+        Cookie: `li_at=${cookie}; JSESSIONID="ajax:${csrfToken}"`,
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "csrf-token": `ajax:${Math.random().toString(36).substring(2)}`,
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "csrf-token": `ajax:${csrfToken}`,
       },
     });
 

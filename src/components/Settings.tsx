@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   getLinkedInCookie,
   setLinkedInCookie,
@@ -13,25 +13,15 @@ import {
 import CookieGuide from "./CookieGuide";
 
 interface SettingsProps {
-  isOpen: boolean;
   onClose: () => void;
   onSettingsChange: () => void;
 }
 
-export default function Settings({
-  isOpen,
-  onClose,
-  onSettingsChange,
-}: SettingsProps) {
-  const [cookie, setCookie] = useState("");
-  const [apiKey, setApiKey] = useState("");
+export default function Settings({ onClose, onSettingsChange }: SettingsProps) {
+  const [cookie, setCookie] = useState(() => getLinkedInCookie() ?? "");
+  const [apiKey, setApiKey] = useState(() => getClaudeApiKey() ?? "");
   const [showCookieGuide, setShowCookieGuide] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    setCookie(getLinkedInCookie() ?? "");
-    setApiKey(getClaudeApiKey() ?? "");
-  }, [isOpen]);
 
   const handleSave = () => {
     if (cookie.trim()) {
@@ -50,7 +40,11 @@ export default function Settings({
   };
 
   const handleClearAll = () => {
-    if (window.confirm("This will remove all your data (cookie, API key, articles, summaries). Continue?")) {
+    if (
+      window.confirm(
+        "This will remove all your data (cookie, API key, articles, summaries). Continue?"
+      )
+    ) {
       clearAllData();
       setCookie("");
       setApiKey("");
@@ -59,10 +53,13 @@ export default function Settings({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="mx-4 w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl dark:bg-zinc-900">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-semibold">Settings</h2>
@@ -70,8 +67,18 @@ export default function Settings({
             onClick={onClose}
             className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
           >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -122,8 +129,8 @@ export default function Settings({
               Claude API Key
             </label>
             <p className="mb-2 text-xs text-zinc-500">
-              Used for AI-powered article summaries (Claude Sonnet 4.6). Get your
-              key from{" "}
+              Used for AI-powered article summaries (Claude Sonnet 4.6). Get
+              your key from{" "}
               <a
                 href="https://console.anthropic.com/settings/keys"
                 target="_blank"
