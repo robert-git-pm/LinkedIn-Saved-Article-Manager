@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  getLinkedInCookie,
-  removeLinkedInCookie,
   getClaudeApiKey,
   isOnboardingComplete,
   getArticles,
@@ -13,7 +11,6 @@ import {
   getArticleStates,
   setArticleState as persistArticleState,
 } from "@/lib/storage";
-import { parseSavedItems, filterArticlesByDays } from "@/lib/linkedin";
 import { summarizeArticle } from "@/lib/claude";
 import { LinkedInArticle, ArticleSummary } from "@/types/article";
 import Header from "@/components/Header";
@@ -22,11 +19,16 @@ import OnboardingWizard from "@/components/OnboardingWizard";
 import TimeRangeSelector from "@/components/TimeRangeSelector";
 import ArticleList from "@/components/ArticleList";
 
+function filterArticlesByDays(articles: LinkedInArticle[], days: number): LinkedInArticle[] {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return articles.filter((a) => new Date(a.savedAt) >= cutoff);
+}
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [hasLinkedIn, setHasLinkedIn] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
 
   const [articles, setArticlesState] = useState<LinkedInArticle[]>([]);
@@ -36,10 +38,12 @@ export default function Home() {
 
   const [selectedDays, setSelectedDays] = useState(7);
   const [loading, setLoading] = useState(false);
+  const [waitingForImport, setWaitingForImport] = useState(false);
   const [error, setError] = useState("");
 
+  const importTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const refreshState = useCallback(() => {
-    setHasLinkedIn(!!getLinkedInCookie());
     setHasApiKey(!!getClaudeApiKey());
     setShowOnboarding(!isOnboardingComplete());
 
@@ -53,67 +57,50 @@ export default function Home() {
     );
   }, []);
 
+  // postMessage listener for Tampermonkey imports
   useEffect(() => {
-    setMounted(true);
-    refreshState();
-  }, [refreshState]);
+    const handleMessage = async (event: MessageEvent) => {
+      // Only accept messages from LinkedIn
+      if (event.origin !== "https://www.linkedin.com") return;
+      if (event.data?.type !== "lamp-import") return;
 
-  const handleFetchAndSummarize = async () => {
-    const cookie = getLinkedInCookie();
-    const apiKey = getClaudeApiKey();
-
-    if (!cookie) {
-      setError("Please set your LinkedIn cookie in settings.");
-      return;
-    }
-    if (!apiKey) {
-      setError("Please set your Claude API key in settings.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      // Fetch saved articles from LinkedIn via our API proxy
-      const response = await fetch("/api/linkedin/saved", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cookie }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || `Failed to fetch articles (${response.status})`);
-      }
-
-      const data = await response.json();
-      const allArticles = parseSavedItems(data);
-      const filtered = filterArticlesByDays(allArticles, selectedDays);
-
-      if (filtered.length === 0) {
-        setError(
-          `No saved articles found from the last ${selectedDays} days. Try a longer time range.`
-        );
-        setLoading(false);
+      const incoming: LinkedInArticle[] = event.data.articles ?? [];
+      if (incoming.length === 0) {
+        setError("No articles received from LinkedIn. Try scrolling down on the saved posts page first.");
+        setWaitingForImport(false);
         return;
       }
 
-      // Store articles
-      setArticles(filtered);
-      setArticlesState(filtered);
+      if (importTimeoutRef.current) {
+        clearTimeout(importTimeoutRef.current);
+        importTimeoutRef.current = null;
+      }
+      setWaitingForImport(false);
 
-      // Summarize each article that doesn't already have a summary
+      const filtered = filterArticlesByDays(incoming, selectedDays);
+      const toStore = filtered.length > 0 ? filtered : incoming;
+
+      setArticles(toStore);
+      setArticlesState(toStore);
+      setError("");
+
+      // Summarize new articles
       const existingSummaries = getSummaries();
       const existingIds = new Set(existingSummaries.map((s) => s.articleId));
-      const toSummarize = filtered.filter(
+      const apiKey = getClaudeApiKey();
+
+      if (!apiKey) {
+        setError("Articles imported! Please set your Claude API key in Settings to generate summaries.");
+        return;
+      }
+
+      const toSummarize = toStore.filter(
         (a) => !existingIds.has(a.id) && !dismissedIds.has(a.id)
       );
 
-      // Mark all as summarizing
       setSummarizingIds(new Set(toSummarize.map((a) => a.id)));
+      setLoading(true);
 
-      // Summarize one at a time to avoid rate limiting
       for (const article of toSummarize) {
         try {
           const summary = await summarizeArticle(apiKey, article);
@@ -122,13 +109,9 @@ export default function Home() {
             ...prev.filter((s) => s.articleId !== summary.articleId),
             summary,
           ]);
-          setSummarizingIds((prev) => {
-            const next = new Set(prev);
-            next.delete(article.id);
-            return next;
-          });
         } catch (err) {
           console.error(`Failed to summarize article ${article.id}:`, err);
+        } finally {
           setSummarizingIds((prev) => {
             const next = new Set(prev);
             next.delete(article.id);
@@ -136,11 +119,38 @@ export default function Home() {
           });
         }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred.");
-    } finally {
+
       setLoading(false);
-    }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [selectedDays, dismissedIds]);
+
+  useEffect(() => {
+    setMounted(true);
+    refreshState();
+  }, [refreshState]);
+
+  const handleImportFromLinkedIn = () => {
+    setError("");
+    setWaitingForImport(true);
+
+    // Open LinkedIn saved posts as popup — window.opener will be available in the script
+    window.open(
+      "https://www.linkedin.com/my-items/saved-posts/",
+      "lamp-linkedin",
+      "width=1200,height=800,noopener=no,noreferrer=no"
+    );
+
+    // Timeout after 90 seconds
+    importTimeoutRef.current = setTimeout(() => {
+      setWaitingForImport(false);
+      setError(
+        "No data received from LinkedIn. Is the LAMP script installed in Tampermonkey? " +
+          "Make sure to install it from Settings → Reinstall LAMP Script."
+      );
+    }, 90000);
   };
 
   const handleToggleDismiss = (articleId: string, dismissed: boolean) => {
@@ -151,13 +161,6 @@ export default function Home() {
       else next.delete(articleId);
       return next;
     });
-  };
-
-  const handleLogout = () => {
-    if (window.confirm("Disconnect LinkedIn? Your summaries will be kept.")) {
-      removeLinkedInCookie();
-      refreshState();
-    }
   };
 
   if (!mounted) return null;
@@ -176,39 +179,51 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
       <Header
-        hasLinkedIn={hasLinkedIn}
+        articleCount={articles.length}
         hasApiKey={hasApiKey}
         onSettingsClick={() => setShowSettings(true)}
-        onLogout={handleLogout}
       />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-        {/* Setup warnings */}
-        {(!hasLinkedIn || !hasApiKey) && (
+        {/* Setup warning */}
+        {!hasApiKey && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-            {!hasLinkedIn && !hasApiKey
-              ? "Please set up your LinkedIn cookie and Claude API key in "
-              : !hasLinkedIn
-              ? "Please set up your LinkedIn cookie in "
-              : "Please set up your Claude API key in "}
+            Please set up your Claude API key in{" "}
             <button
               onClick={() => setShowSettings(true)}
               className="font-medium underline"
             >
               Settings
-            </button>
-            {" "}to get started.
+            </button>{" "}
+            to generate summaries.
           </div>
         )}
 
-        {/* Time range selector */}
-        {hasLinkedIn && hasApiKey && (
-          <TimeRangeSelector
-            selectedDays={selectedDays}
-            onSelect={setSelectedDays}
-            onFetch={handleFetchAndSummarize}
-            loading={loading}
-          />
+        {/* Import button + time range */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <TimeRangeSelector
+              selectedDays={selectedDays}
+              onSelect={setSelectedDays}
+              onFetch={handleImportFromLinkedIn}
+              loading={loading || waitingForImport}
+            />
+          </div>
+        </div>
+
+        {/* Waiting for import indicator */}
+        {waitingForImport && (
+          <div className="mt-4 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
+            <svg className="h-5 w-5 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span>
+              Waiting for LinkedIn import… In the popup, the LAMP script will
+              send your articles automatically. If nothing happens after a few
+              seconds, click the &quot;Send to LAMP&quot; button in the popup.
+            </span>
+          </div>
         )}
 
         {/* Error display */}
@@ -232,7 +247,7 @@ export default function Home() {
         )}
 
         {/* Empty state */}
-        {articles.length === 0 && hasLinkedIn && hasApiKey && !loading && (
+        {articles.length === 0 && !loading && !waitingForImport && (
           <div className="mt-12 text-center">
             <div className="mb-4 text-4xl text-zinc-300">
               <svg className="mx-auto h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -243,18 +258,19 @@ export default function Home() {
               No articles loaded yet
             </h3>
             <p className="text-sm text-zinc-500">
-              Select a time range above and click &quot;Fetch &amp; Summarize&quot; to get started.
+              Click &quot;Import from LinkedIn&quot; to fetch your saved posts.
             </p>
           </div>
         )}
       </main>
 
       {/* Settings Modal */}
-      <Settings
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        onSettingsChange={refreshState}
-      />
+      {showSettings && (
+        <Settings
+          onClose={() => setShowSettings(false)}
+          onSettingsChange={refreshState}
+        />
+      )}
     </div>
   );
 }

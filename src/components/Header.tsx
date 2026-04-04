@@ -1,17 +1,15 @@
 "use client";
 
 interface HeaderProps {
-  hasLinkedIn: boolean;
+  articleCount: number;
   hasApiKey: boolean;
   onSettingsClick: () => void;
-  onLogout: () => void;
 }
 
 export default function Header({
-  hasLinkedIn,
+  articleCount,
   hasApiKey,
   onSettingsClick,
-  onLogout,
 }: HeaderProps) {
   return (
     <header className="border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
@@ -28,20 +26,12 @@ export default function Header({
         <div className="flex items-center gap-3">
           {/* Status indicators */}
           <div className="hidden items-center gap-2 sm:flex">
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                hasLinkedIn
-                  ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                  : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  hasLinkedIn ? "bg-green-500" : "bg-zinc-400"
-                }`}
-              />
-              LinkedIn
-            </span>
+            {articleCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                {articleCount} articles
+              </span>
+            )}
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                 hasApiKey
@@ -74,17 +64,6 @@ export default function Header({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
-
-          {/* Logout */}
-          {hasLinkedIn && (
-            <button
-              onClick={onLogout}
-              className="rounded-lg px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
-              title="Disconnect LinkedIn"
-            >
-              Log out
-            </button>
-          )}
         </div>
       </div>
     </header>

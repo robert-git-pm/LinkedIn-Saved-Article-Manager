@@ -1,44 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
-  getLinkedInCookie,
-  setLinkedInCookie,
-  removeLinkedInCookie,
   getClaudeApiKey,
   setClaudeApiKey,
   removeClaudeApiKey,
   clearAllData,
 } from "@/lib/storage";
-import CookieGuide from "./CookieGuide";
 
 interface SettingsProps {
-  isOpen: boolean;
   onClose: () => void;
   onSettingsChange: () => void;
 }
 
-export default function Settings({
-  isOpen,
-  onClose,
-  onSettingsChange,
-}: SettingsProps) {
-  const [cookie, setCookie] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [showCookieGuide, setShowCookieGuide] = useState(false);
+export default function Settings({ onClose, onSettingsChange }: SettingsProps) {
+  const [apiKey, setApiKey] = useState(() => getClaudeApiKey() ?? "");
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    setCookie(getLinkedInCookie() ?? "");
-    setApiKey(getClaudeApiKey() ?? "");
-  }, [isOpen]);
-
   const handleSave = () => {
-    if (cookie.trim()) {
-      setLinkedInCookie(cookie.trim());
-    } else {
-      removeLinkedInCookie();
-    }
     if (apiKey.trim()) {
       setClaudeApiKey(apiKey.trim());
     } else {
@@ -50,19 +29,25 @@ export default function Settings({
   };
 
   const handleClearAll = () => {
-    if (window.confirm("This will remove all your data (cookie, API key, articles, summaries). Continue?")) {
+    if (
+      window.confirm(
+        "This will remove all your data (API key, articles, summaries). Continue?"
+      )
+    ) {
       clearAllData();
-      setCookie("");
       setApiKey("");
       onSettingsChange();
       onClose();
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="mx-4 w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl dark:bg-zinc-900">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-semibold">Settings</h2>
@@ -77,43 +62,22 @@ export default function Settings({
         </div>
 
         <div className="space-y-5">
-          {/* LinkedIn Cookie */}
+          {/* LAMP Script */}
           <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                LinkedIn Session Cookie (li_at)
-              </label>
-              <button
-                onClick={() => setShowCookieGuide(!showCookieGuide)}
-                className="text-xs text-blue-600 hover:underline dark:text-blue-400"
-              >
-                {showCookieGuide ? "Hide guide" : "How to find it?"}
-              </button>
-            </div>
-            {showCookieGuide && (
-              <div className="mb-2">
-                <CookieGuide />
-              </div>
-            )}
-            <input
-              type="password"
-              value={cookie}
-              onChange={(e) => setCookie(e.target.value)}
-              placeholder="Paste your li_at cookie value here"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-800"
-            />
-            {cookie && (
-              <button
-                onClick={() => {
-                  setCookie("");
-                  removeLinkedInCookie();
-                  onSettingsChange();
-                }}
-                className="mt-1 text-xs text-red-600 hover:underline"
-              >
-                Remove cookie
-              </button>
-            )}
+            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              LAMP Browser Script
+            </label>
+            <p className="mb-2 text-xs text-zinc-500">
+              The Tampermonkey script that imports your saved LinkedIn posts.
+            </p>
+            <a
+              href="/lamp-linkedin.user.js"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              Reinstall LAMP Script
+            </a>
           </div>
 
           {/* Claude API Key */}
@@ -122,8 +86,7 @@ export default function Settings({
               Claude API Key
             </label>
             <p className="mb-2 text-xs text-zinc-500">
-              Used for AI-powered article summaries (Claude Sonnet 4.6). Get your
-              key from{" "}
+              Used for AI-powered article summaries (Claude Sonnet 4.6). Get your key from{" "}
               <a
                 href="https://console.anthropic.com/settings/keys"
                 target="_blank"

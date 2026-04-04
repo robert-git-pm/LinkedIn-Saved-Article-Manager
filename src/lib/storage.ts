@@ -1,7 +1,6 @@
 import { ArticleSummary, ArticleState, LinkedInArticle } from "@/types/article";
 
 const KEYS = {
-  LINKEDIN_COOKIE: "lamp_linkedin_cookie",
   CLAUDE_API_KEY: "lamp_claude_api_key",
   ARTICLES: "lamp_articles",
   SUMMARIES: "lamp_summaries",
@@ -9,8 +8,12 @@ const KEYS = {
   ONBOARDING_COMPLETE: "lamp_onboarding_complete",
 } as const;
 
+function isBrowser(): boolean {
+  return typeof window !== "undefined";
+}
+
 function getItem<T>(key: string): T | null {
-  if (typeof window === "undefined") return null;
+  if (!isBrowser()) return null;
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
@@ -20,39 +23,32 @@ function getItem<T>(key: string): T | null {
 }
 
 function setItem<T>(key: string, value: T): void {
-  if (typeof window === "undefined") return;
+  if (!isBrowser()) return;
   localStorage.setItem(key, JSON.stringify(value));
 }
 
 function removeItem(key: string): void {
-  if (typeof window === "undefined") return;
+  if (!isBrowser()) return;
   localStorage.removeItem(key);
 }
 
-// LinkedIn Cookie
-export function getLinkedInCookie(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(KEYS.LINKEDIN_COOKIE);
+function getRawItem(key: string): string | null {
+  if (!isBrowser()) return null;
+  return localStorage.getItem(key);
 }
 
-export function setLinkedInCookie(cookie: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEYS.LINKEDIN_COOKIE, cookie);
-}
-
-export function removeLinkedInCookie(): void {
-  removeItem(KEYS.LINKEDIN_COOKIE);
+function setRawItem(key: string, value: string): void {
+  if (!isBrowser()) return;
+  localStorage.setItem(key, value);
 }
 
 // Claude API Key
 export function getClaudeApiKey(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(KEYS.CLAUDE_API_KEY);
+  return getRawItem(KEYS.CLAUDE_API_KEY);
 }
 
 export function setClaudeApiKey(key: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEYS.CLAUDE_API_KEY, key);
+  setRawItem(KEYS.CLAUDE_API_KEY, key);
 }
 
 export function removeClaudeApiKey(): void {
@@ -90,34 +86,27 @@ export function getArticleStates(): ArticleState[] {
 
 export function setArticleState(articleId: string, dismissed: boolean): void {
   const states = getArticleStates();
-  const existing = states.findIndex((s) => s.articleId === articleId);
+  const idx = states.findIndex((s) => s.articleId === articleId);
   const newState: ArticleState = {
     articleId,
     dismissed,
     dismissedAt: dismissed ? new Date().toISOString() : undefined,
   };
-  if (existing >= 0) {
-    states[existing] = newState;
+  if (idx >= 0) {
+    states[idx] = newState;
   } else {
     states.push(newState);
   }
   setItem(KEYS.ARTICLE_STATES, states);
 }
 
-export function isArticleDismissed(articleId: string): boolean {
-  const states = getArticleStates();
-  return states.find((s) => s.articleId === articleId)?.dismissed ?? false;
-}
-
 // Onboarding
 export function isOnboardingComplete(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(KEYS.ONBOARDING_COMPLETE) === "true";
+  return getRawItem(KEYS.ONBOARDING_COMPLETE) === "true";
 }
 
 export function setOnboardingComplete(): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEYS.ONBOARDING_COMPLETE, "true");
+  setRawItem(KEYS.ONBOARDING_COMPLETE, "true");
 }
 
 // Clear all data

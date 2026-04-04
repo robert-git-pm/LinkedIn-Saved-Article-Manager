@@ -1,49 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import {
-  setLinkedInCookie,
-  setClaudeApiKey,
-  setOnboardingComplete,
-} from "@/lib/storage";
-import CookieGuide from "./CookieGuide";
+import { setClaudeApiKey, setOnboardingComplete } from "@/lib/storage";
 
 interface OnboardingWizardProps {
   onComplete: () => void;
 }
 
-export default function OnboardingWizard({
-  onComplete,
-}: OnboardingWizardProps) {
+export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [step, setStep] = useState(0);
-  const [cookie, setCookie] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [validating, setValidating] = useState(false);
   const [error, setError] = useState("");
 
-  const handleFinish = async () => {
-    if (!cookie.trim()) {
-      setError("Please enter your LinkedIn cookie.");
-      return;
-    }
+  const handleFinish = () => {
     if (!apiKey.trim()) {
       setError("Please enter your Claude API key.");
       return;
     }
-
-    setValidating(true);
-    setError("");
-
-    try {
-      setLinkedInCookie(cookie.trim());
-      setClaudeApiKey(apiKey.trim());
-      setOnboardingComplete();
-      onComplete();
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setValidating(false);
-    }
+    setClaudeApiKey(apiKey.trim());
+    setOnboardingComplete();
+    onComplete();
   };
 
   const steps = [
@@ -52,16 +28,13 @@ export default function OnboardingWizard({
       <div className="mb-6 text-6xl">
         <span className="text-blue-600 font-bold">LAMP</span>
       </div>
-      <h2 className="mb-3 text-2xl font-bold">
-        Welcome to LAMP
-      </h2>
+      <h2 className="mb-3 text-2xl font-bold">Welcome to LAMP</h2>
       <p className="mb-2 text-zinc-600 dark:text-zinc-400">
         LinkedIn Article Management &amp; Productivity
       </p>
       <p className="mx-auto max-w-md text-sm text-zinc-500">
-        LAMP helps you stay on top of your saved LinkedIn articles. It fetches
-        your saved posts, summarizes them with AI, and lets you manage them
-        efficiently.
+        LAMP uses a small browser script to import your saved LinkedIn posts,
+        then summarizes them with Claude AI — all stored locally in your browser.
       </p>
       <button
         onClick={() => setStep(1)}
@@ -71,25 +44,96 @@ export default function OnboardingWizard({
       </button>
     </div>,
 
-    // Step 1: LinkedIn Cookie
-    <div key="linkedin" className="max-w-md mx-auto">
-      <h2 className="mb-2 text-xl font-bold">Connect LinkedIn</h2>
+    // Step 1: Tampermonkey setup
+    <div key="tampermonkey" className="max-w-md mx-auto">
+      <h2 className="mb-2 text-xl font-bold">Install the LAMP Script</h2>
       <p className="mb-4 text-sm text-zinc-500">
-        To access your saved articles, we need your LinkedIn session cookie.
+        LAMP uses a Tampermonkey userscript to read your saved LinkedIn posts
+        directly in your browser — no cookie sharing required.
       </p>
-      <CookieGuide />
-      <div className="mt-4">
-        <input
-          type="password"
-          value={cookie}
-          onChange={(e) => {
-            setCookie(e.target.value);
-            setError("");
-          }}
-          placeholder="Paste your li_at cookie value here"
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-800"
-        />
+
+      <div className="space-y-4">
+        {/* Step 1 */}
+        <div className="flex gap-3">
+          <div className="flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+            1
+          </div>
+          <div>
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+              Install Tampermonkey
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              A free browser extension that lets you run custom scripts.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a
+                href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                Chrome
+              </a>
+              <a
+                href="https://addons.mozilla.org/firefox/addon/tampermonkey/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                Firefox
+              </a>
+              <a
+                href="https://apps.apple.com/app/tampermonkey/id1482490089"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                Safari
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 2 */}
+        <div className="flex gap-3">
+          <div className="flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+            2
+          </div>
+          <div>
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+              Install the LAMP script
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Click the link below — Tampermonkey will recognize it and offer to install.
+            </p>
+            <a
+              href="/lamp-linkedin.user.js"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+            >
+              Install LAMP Script
+            </a>
+          </div>
+        </div>
+
+        {/* Step 3 */}
+        <div className="flex gap-3">
+          <div className="flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+            3
+          </div>
+          <div>
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+              Done — click Next
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Once installed, the script will run automatically when you import
+              from LinkedIn.
+            </p>
+          </div>
+        </div>
       </div>
+
       <div className="mt-6 flex justify-between">
         <button
           onClick={() => setStep(0)}
@@ -98,17 +142,10 @@ export default function OnboardingWizard({
           Back
         </button>
         <button
-          onClick={() => {
-            if (!cookie.trim()) {
-              setError("Please enter your LinkedIn cookie.");
-              return;
-            }
-            setError("");
-            setStep(2);
-          }}
+          onClick={() => { setError(""); setStep(2); }}
           className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
         >
-          Next
+          I&apos;ve installed it
         </button>
       </div>
     </div>,
@@ -141,10 +178,7 @@ export default function OnboardingWizard({
       <input
         type="password"
         value={apiKey}
-        onChange={(e) => {
-          setApiKey(e.target.value);
-          setError("");
-        }}
+        onChange={(e) => { setApiKey(e.target.value); setError(""); }}
         placeholder="sk-ant-api03-..."
         className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-800"
       />
@@ -158,10 +192,9 @@ export default function OnboardingWizard({
         </button>
         <button
           onClick={handleFinish}
-          disabled={validating}
-          className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
         >
-          {validating ? "Setting up..." : "Finish Setup"}
+          Finish Setup
         </button>
       </div>
     </div>,
