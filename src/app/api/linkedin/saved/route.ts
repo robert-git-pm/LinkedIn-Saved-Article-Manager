@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const LINKEDIN_ENDPOINTS = [
-  "https://www.linkedin.com/voyager/api/saveDashSaves?count=40&start=0&q=savedByMe",
-  "https://www.linkedin.com/voyager/api/voyagerContentDashSaves?count=40&start=0&q=savedByMe",
+// LinkedIn saved posts are accessed via the Search GraphQL API with a specific intent.
+// We try multiple known queryIds as they rotate periodically.
+const GRAPHQL_BASE = "https://www.linkedin.com/voyager/api/graphql";
+
+const QUERY_IDS = [
+  "voyagerSearchDashClusters.ed237181fcdbbd288bfcde627a5e2a07",
+  "voyagerSearchDashClusters.05111e1b90ee7fea15bebe9f9410ced9",
 ];
+
+function buildUrl(queryId: string, start: number, count: number): string {
+  const variables = `(start:${start},count:${count},query:(flagshipSearchIntent:SEARCH_MY_ITEMS_SAVED_POSTS))`;
+  return `${GRAPHQL_BASE}?queryId=${queryId}&variables=${encodeURIComponent(variables)}`;
+}
 
 function buildHeaders(cookie: string) {
   const csrfToken = Math.random().toString(36).substring(2);
@@ -11,6 +20,7 @@ function buildHeaders(cookie: string) {
     Accept: "application/vnd.linkedin.normalized+json+2.1",
     "x-restli-protocol-version": "2.0.0",
     "x-li-lang": "en_US",
+    "x-li-page-instance": "urn:li:page:d_flagship3_search_srp_my_items;",
     "x-li-track": JSON.stringify({
       clientVersion: "1.13.8",
       mpVersion: "1.13.8",
@@ -40,8 +50,9 @@ export async function POST(request: NextRequest) {
     let lastStatus = 0;
     let lastBody = "";
 
-    for (const endpoint of LINKEDIN_ENDPOINTS) {
-      const response = await fetch(endpoint, { method: "GET", headers });
+    for (const queryId of QUERY_IDS) {
+      const url = buildUrl(queryId, 0, 40);
+      const response = await fetch(url, { method: "GET", headers });
 
       if (response.status === 401 || response.status === 403) {
         return NextResponse.json(
@@ -55,32 +66,35 @@ export async function POST(request: NextRequest) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log(`LinkedIn endpoint succeeded: ${endpoint}`);
+        console.log(`LinkedIn search endpoint succeeded with queryId: ${queryId}`);
         return NextResponse.json(data);
       }
 
       lastStatus = response.status;
       lastBody = await response.text().catch(() => "");
       console.log(
-        `LinkedIn endpoint returned ${response.status}: ${endpoint}`
+        `LinkedIn search endpoint returned ${response.status} for queryId: ${queryId}`
       );
 
-      // Only retry on 404 (endpoint not found), not on other errors
-      if (response.status !== 404) {
+      // Retry on 404 or 400 (stale queryId), stop on other errors
+      if (response.status !== 404 && response.status !== 400) {
         return NextResponse.json(
-          { error: `LinkedIn API error: ${response.status}` },
+          {
+            error: `LinkedIn API error (${response.status}). Please try again later.`,
+            debug: lastBody.substring(0, 500),
+          },
           { status: response.status }
         );
       }
     }
 
-    // All endpoints returned 404
+    // All queryIds failed
     return NextResponse.json(
       {
         error:
-          "LinkedIn saved posts endpoint not available. LinkedIn may have changed their internal API. " +
-          `Last status: ${lastStatus}. Please report this issue.`,
-        debug: lastBody.substring(0, 200),
+          "Could not reach LinkedIn saved posts. LinkedIn may have updated their internal API, " +
+          "or your session cookie may be invalid. Try updating your li_at cookie in settings.",
+        debug: `Last status: ${lastStatus}. Response: ${lastBody.substring(0, 500)}`,
       },
       { status: 502 }
     );
